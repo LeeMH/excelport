@@ -65,7 +65,8 @@ class AnnotationParserTest {
     @Test
     public void testToRow() {
         SampleDto dto = SampleDto.create("홍길동", 25);
-        List<Object> rows = AnnotationParser.toRow(dto);
+        List<ExcelField> parsedExcel = AnnotationParser.extractExcelColumns(dto);
+        List<Object> rows = AnnotationParser.toRow(dto, parsedExcel);
 
         assertTrue(rows.size() == 4);
 

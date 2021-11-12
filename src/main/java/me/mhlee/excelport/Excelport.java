@@ -42,7 +42,6 @@ public class Excelport {
     private static final Gson gson = new Gson();
 
     public static void toCsv(OutputStream os, Iterator iterator) {
-        long rowNum = 0;
         List<String> lines = new LinkedList<>();
 
         // pick first item for extracting excel column
@@ -53,15 +52,13 @@ public class Excelport {
         List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
         List<String> headers = AnnotationParser.toHeader(parsedExcels);
         lines.add(toCsvString(parsedExcels, headers, true));
-        rowNum++;
 
         // write first item
-        lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(firstItem), false));
+        lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(firstItem, parsedExcels), false));
 
         while(iterator.hasNext()) {
             Object obj = iterator.next();
-            lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(obj), false));
-            rowNum++;
+            lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(obj, parsedExcels), false));
         }
 
         try {
@@ -89,12 +86,12 @@ public class Excelport {
         List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
 
         // write first item
-        lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(firstItem)));
+        lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(firstItem, parsedExcels)));
 
         while(iterator.hasNext()) {
             Object obj = iterator.next();
 
-            lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(obj)));
+            lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(obj, parsedExcels)));
         }
 
         try {
@@ -132,6 +129,45 @@ public class Excelport {
         }
 
         return row.stream().collect(Collectors.joining(",")) + NEW_LINE;
+    }
+
+
+    /** 입력된 iterator 객체를 엑셀로 변환
+     * @param os
+     * @param iterator
+     */
+    public static void toExcel(OutputStream os, Iterator iterator, Class template) {
+        SXSSFWorkbook workbook = null;
+        workbook = new SXSSFWorkbook(1000);
+        SXSSFSheet sheet = null;
+
+        if (!iterator.hasNext()) return;
+
+        // pick first item for extracting excel column
+        Object firstItem = iterator.next();
+        List<ExcelField> parsedExcels = null;
+        try {
+            parsedExcels = AnnotationParser.extractExcelColumns(template.newInstance());
+        } catch(InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+        while(iterator.hasNext()) {
+            sheet = workbook.createSheet();
+            sheet.trackAllColumnsForAutoSizing();
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
+        }
+
+        try {
+            workbook.write(os);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (os != null) try { os.flush(); os.close(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.dispose(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.close(); } catch(Exception e) {}
+        }
     }
 
     /** 입력된 iterator 객체를 엑셀로 변환
@@ -174,12 +210,12 @@ public class Excelport {
         processHeaderRow(workbook, sheet.createRow(rowNum++), headers);
 
         //write first record
-        processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(firstItem), parsedExcels);
+        processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(firstItem, parsedExcels), parsedExcels);
 
         while (iterator.hasNext()) {
             Object obj = iterator.next();
 
-            processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(obj), parsedExcels);
+            processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(obj, parsedExcels), parsedExcels);
 
             // sheet 당 최대 출력 line 조정
             if (rowNum % MAX_PER_SHEET == 1) {  //rowNum = 데이터 컬럼(n) + 헤더 컬럼(1)
