@@ -4,6 +4,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,35 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class AnnotationParser {
+
+    /** 객체에 선언된 Excel annotation 정보와 필드명을 order 순서에 맞게 정렬하여 리턴
+     * @param template Excel annotation 정보가 선언된 String array
+     * @return
+     */
+    public static List<ExcelField> extractExcelColumnsFromString(String[] template) {
+        List<ExcelField> result = new ArrayList<>();
+
+        for(String item : template) {
+            ExcelField excelField = new ExcelField();
+            String[] fields = item.split(",");
+
+            for (String field: fields) {
+                excelField.setFieldByStringTemplate(field);
+            }
+
+            if (Objects.isNull(excelField.getFieldName())) {
+                System.out.println("fieldName is null!! ==> " + excelField);
+            }
+
+            System.out.println(excelField);
+
+            result.add(excelField);
+        }
+
+        return result.stream()
+                .sorted()
+                .collect(Collectors.toList());
+    }
 
     /** 객체에 선언된 Excel annotation 정보와 필드명을 order 순서에 맞게 정렬하여 리턴
      * @param obj Excel annotation 이 선언된 object
@@ -45,7 +75,7 @@ public class AnnotationParser {
                 .orElse(null);
     }
 
-    /** DTO(or VO) 형태의 객체를 Map<필드명, 값> 형태의 Map으로 리턴
+    /** DTO(or VO) 형태의 객체를 Map<필드명, 값> 형태의 Map 으로 리턴
      * @param obj
      * @return
      */
@@ -89,22 +119,17 @@ public class AnnotationParser {
      * @param obj
      * @return
      */
-    //데이터 컬럼을 List 로 추출
     private static List<Object> extractRow(List<ExcelField> columns, Object obj) {
-        Map<String, Object> kv = toMap(obj);
-
-        return columns.stream()
-                .map(it -> kv.get(it.getFieldName()))
-                .collect(Collectors.toList());
+        if (obj instanceof Map)
+            return extractRow(columns, (Map)obj);
+        else
+            return extractRow(columns, toMap(obj));
     }
 
-    /** 입력된 Object 에서 Excel annotation 메타정보 추출후 컬럼헤더 리턴
-     * @param obj
-     * @return
-     */
-    public static List<String> toHeader(Object obj) {
-        List<ExcelField> columns = extractExcelColumns(obj);
-        return extractHeader(columns);
+    private static List<Object> extractRow(List<ExcelField> columns, Map<String, Object> map) {
+        return columns.stream()
+                .map(it -> map.get(it.getFieldName()))
+                .collect(Collectors.toList());
     }
 
     /** Excel annotation 메타정보에서 헤더컬럼만 추출
@@ -120,9 +145,8 @@ public class AnnotationParser {
      * @param obj
      * @return
      */
-    public static List<Object> toRow(Object obj) {
-        List<ExcelField> columns = extractExcelColumns(obj);
-        return extractRow(columns, obj);
+    public static List<Object> toRow(Object obj, List<ExcelField> parsedExcels) {
+        return extractRow(parsedExcels, obj);
     }
 
 }

@@ -23,4 +23,5 @@ public enum DateFormat {
     public DateTimeFormatter getFormat() {
         return format;
     }
+
 }

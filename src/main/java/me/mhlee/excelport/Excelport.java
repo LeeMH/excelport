@@ -35,33 +35,30 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import com.google.gson.Gson;
 
-public class ExcelService {
+public class Excelport {
 
-    private static String NEW_LINE = "\n";
-    private static long MAX_PER_SHEET = 60_000L;
-    private static Gson gson = new Gson();
+    private static final String NEW_LINE = System.lineSeparator();
+    private static final long MAX_PER_SHEET = 60_000L;
+    private static final Gson gson = new Gson();
 
     public static void toCsv(OutputStream os, Iterator iterator) {
-        List<ExcelField> parsedExcels = null;
-        long rowNum = 0;
-
         List<String> lines = new LinkedList<>();
+
+        // pick first item for extracting excel column
+        if (!iterator.hasNext()) return;
+        Object firstItem = iterator.next();
+
+        // write column header
+        List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
+        List<String> headers = AnnotationParser.toHeader(parsedExcels);
+        lines.add(toCsvString(parsedExcels, headers, true));
+
+        // write first item
+        lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(firstItem, parsedExcels), false));
 
         while(iterator.hasNext()) {
             Object obj = iterator.next();
-
-            // 첫라인 이라면, Excel annotation 정보를 추출하고, 헤더 컬럼 출력
-            if (rowNum == 0) {
-                parsedExcels = AnnotationParser.extractExcelColumns(obj);
-                List<String> headers = AnnotationParser.toHeader(parsedExcels);
-
-                lines.add(toCsvString(parsedExcels, headers, true));
-                rowNum++;
-            }
-
-            List<Object> columns = AnnotationParser.toRow(obj);
-            lines.add(toCsvString(parsedExcels, columns, false));
-            rowNum++;
+            lines.add(toCsvString(parsedExcels, AnnotationParser.toRow(obj, parsedExcels), false));
         }
 
         try {
@@ -79,23 +76,22 @@ public class ExcelService {
     }
 
     public static void toJson(OutputStream os, Iterator iterator) {
-        List<ExcelField> parsedExcels = null;
-        long rowNum = 0;
-
         List<byte[]> lines = new LinkedList<>();
+
+        // pick first item for extracting excel column
+        if (!iterator.hasNext()) return;
+        Object firstItem = iterator.next();
+
+        // write column header
+        List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
+
+        // write first item
+        lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(firstItem, parsedExcels)));
 
         while(iterator.hasNext()) {
             Object obj = iterator.next();
 
-            // 첫라인 이라면, Excel annotation 정보를 추출하고, 헤더 컬럼 출력
-            if (rowNum == 0) {
-                parsedExcels = AnnotationParser.extractExcelColumns(obj);
-                rowNum++;
-            }
-
-            List<Object> columns = AnnotationParser.toRow(obj);
-            lines.add(toJsonByte(parsedExcels, columns));
-            rowNum++;
+            lines.add(toJsonByte(parsedExcels, AnnotationParser.toRow(obj, parsedExcels)));
         }
 
         try {
@@ -121,7 +117,6 @@ public class ExcelService {
         }
 
         String json = gson.toJson(map) + NEW_LINE;
-        System.out.println(json);
 
         return json.getBytes();
     }
@@ -140,15 +135,21 @@ public class ExcelService {
      * @param os
      * @param iterator
      */
-    public static void toExcel(OutputStream os, Iterator iterator) {
+    public static void toExcel(OutputStream os, Iterator iterator, String[] template) {
         SXSSFWorkbook workbook = null;
         workbook = new SXSSFWorkbook(1000);
         SXSSFSheet sheet = null;
 
+        if (!iterator.hasNext()) return;
+
+        // pick first item for extracting excel column
+        Object firstItem = iterator.next();
+        List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumnsFromString(template);
+
         while(iterator.hasNext()) {
             sheet = workbook.createSheet();
             sheet.trackAllColumnsForAutoSizing();
-            toExcel(workbook, sheet, iterator);
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
         }
 
         try {
@@ -162,22 +163,92 @@ public class ExcelService {
         }
     }
 
-    private static void toExcel(Workbook workbook, Sheet sheet, Iterator iterator) {
-        List<ExcelField> parsedExcels = new ArrayList<>();
+    /** 입력된 iterator 객체를 엑셀로 변환
+     * @param os
+     * @param iterator
+     */
+    public static void toExcel(OutputStream os, Iterator iterator, Class template) {
+        SXSSFWorkbook workbook = null;
+        workbook = new SXSSFWorkbook(1000);
+        SXSSFSheet sheet = null;
 
+        if (!iterator.hasNext()) return;
+
+        // pick first item for extracting excel column
+        Object firstItem = iterator.next();
+        List<ExcelField> parsedExcels = null;
+        try {
+            parsedExcels = AnnotationParser.extractExcelColumns(template.newInstance());
+
+            parsedExcels.stream().forEach(it -> System.out.println(it));
+        } catch(InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+
+        while(iterator.hasNext()) {
+            sheet = workbook.createSheet();
+            sheet.trackAllColumnsForAutoSizing();
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
+        }
+
+        try {
+            workbook.write(os);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (os != null) try { os.flush(); os.close(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.dispose(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.close(); } catch(Exception e) {}
+        }
+    }
+
+    /** 입력된 iterator 객체를 엑셀로 변환
+     * @param os
+     * @param iterator
+     */
+    public static void toExcel(OutputStream os, Iterator iterator) {
+        SXSSFWorkbook workbook = null;
+        workbook = new SXSSFWorkbook(1000);
+        SXSSFSheet sheet = null;
+
+        if (!iterator.hasNext()) return;
+
+        // pick first item for extracting excel column
+        Object firstItem = iterator.next();
+        List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
+
+        while(iterator.hasNext()) {
+            sheet = workbook.createSheet();
+            sheet.trackAllColumnsForAutoSizing();
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
+        }
+
+        try {
+            workbook.write(os);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (os != null) try { os.flush(); os.close(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.dispose(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.close(); } catch(Exception e) {}
+        }
+    }
+
+    private static void toExcel(Workbook workbook, Sheet sheet, Iterator iterator, Object firstItem, List<ExcelField> parsedExcels) {
         int rowNum = 0;
+
+        //write column header
+        List<String> headers = AnnotationParser.toHeader(parsedExcels);
+        processHeaderRow(workbook, sheet.createRow(rowNum++), headers);
+
+        //write first record
+        processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(firstItem, parsedExcels), parsedExcels);
+
         while (iterator.hasNext()) {
             Object obj = iterator.next();
 
-            // 첫라인 이라면, Excel annotation 정보를 추출하고, 헤더 컬럼 출력
-            if (rowNum == 0) {
-                parsedExcels = AnnotationParser.extractExcelColumns(obj);
-                List<String> headers = AnnotationParser.toHeader(parsedExcels);
-                processHeaderRow(workbook, sheet.createRow(rowNum++), headers);
-            }
-
-            List<Object> columns = AnnotationParser.toRow(obj);
-            processDataRow(workbook, sheet.createRow(rowNum++), columns, parsedExcels);
+            processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(obj, parsedExcels), parsedExcels);
 
             // sheet 당 최대 출력 line 조정
             if (rowNum % MAX_PER_SHEET == 1) {  //rowNum = 데이터 컬럼(n) + 헤더 컬럼(1)
@@ -272,13 +343,13 @@ public class ExcelService {
         else if (obj instanceof Float || obj instanceof Double) {
             return NumberUtils.toDouble(obj.toString());
         }
-        else if (obj instanceof Date) { //Date 타입인 경우, LocalDateTime 타입으로 변환후 처리
+        else if (obj instanceof Date) { //Date 타입인 경우, LocalDate 타입으로 변환후 처리
             LocalDate localDate = ((Date)obj).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             return localDate.format(dateFormat.getFormat());
         }
-        else if (obj instanceof LocalDate) { //LocalDate 타입인 경우, LocalDateTime 타입으로 변환후 처리
-            LocalDateTime localDateTime = ((LocalDateTime)obj);
-            return localDateTime.format(dateFormat.getFormat());
+        else if (obj instanceof LocalDate) {
+            LocalDate localDate = ((LocalDate)obj);
+            return localDate.format(dateFormat.getFormat());
         }
         else if (obj instanceof LocalDateTime) {
             // format 의 디폴트는 Date 포맷이다. LocalDateTime 타입이지만 format 이 없는 경우, DateTime 에 대한 포맷으로 적용
