@@ -2,15 +2,11 @@
 
 ## 1. excelport ?
 
----
-
 excelport 는 Excel + Export 의 합성어 입니다.
 
 excelport 는 단 1줄의 코드로 Collection 타입의 데이터를 엑셀로 변환 합니다. 
 
 ## 2. 설치 방법
-
----
 
 - pom.xml 파일에 repository 정보 추가
 ```xml
@@ -34,8 +30,6 @@ excelport 는 단 1줄의 코드로 Collection 타입의 데이터를 엑셀로 
 
 ## 3. 사용방법
 
----
-
 단 1줄의 toExcel 메소드 호출로 엑셀 추출 가능
 
 ```java
@@ -45,8 +39,6 @@ excelport 는 단 1줄의 코드로 Collection 타입의 데이터를 엑셀로 
 ```
 
 ## 4. Excel 메타 정보 설정
-
----
 
 ### 1. @Excel 애노테이션 추가
 
@@ -86,16 +78,12 @@ excelport 는 단 1줄의 코드로 Collection 타입의 데이터를 엑셀로 
 
 
 
-## 4. Excel 추출 샘플
-
----
+## 5. Excel 추출 샘플
 
 ![excelport-result](https://user-images.githubusercontent.com/5078531/141324070-4b3fc604-eb38-4fa9-9ef3-3736f0ecd267.png)
 
 
-## 5. 기타
-
----
+## 6. 기타
 
 ### 1. 출력값에 대한 서식, 변환등
 
