@@ -14,16 +14,16 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 
-public class MapSourceProcessingTest {
+public class MapSourceWithClassTemplateTest {
 
     public static class Member {
-        @Excel
+        @Excel(order = 1)
         String name;
 
         @Excel
         int age;
 
-        @Excel(name = "별명")
+        @Excel(name = "별명", order = 2)
         String nick_name;
 
         @Excel(name = "포인트")
@@ -53,7 +53,7 @@ public class MapSourceProcessingTest {
         System.out.println(tempDir);
 
         // excel 출력
-        OutputStream excelOs = new FileOutputStream(new File(tempDir, "map_out.xlsx"));
+        OutputStream excelOs = new FileOutputStream(new File(tempDir, "out_with_map_class_template.xlsx"));
         Excelport.toExcel(excelOs, list.iterator(), Member.class);
     }
 

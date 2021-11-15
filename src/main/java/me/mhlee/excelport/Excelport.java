@@ -131,6 +131,37 @@ public class Excelport {
         return row.stream().collect(Collectors.joining(",")) + NEW_LINE;
     }
 
+    /** 입력된 iterator 객체를 엑셀로 변환
+     * @param os
+     * @param iterator
+     */
+    public static void toExcel(OutputStream os, Iterator iterator, String[] template) {
+        SXSSFWorkbook workbook = null;
+        workbook = new SXSSFWorkbook(1000);
+        SXSSFSheet sheet = null;
+
+        if (!iterator.hasNext()) return;
+
+        // pick first item for extracting excel column
+        Object firstItem = iterator.next();
+        List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumnsFromString(template);
+
+        while(iterator.hasNext()) {
+            sheet = workbook.createSheet();
+            sheet.trackAllColumnsForAutoSizing();
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
+        }
+
+        try {
+            workbook.write(os);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (os != null) try { os.flush(); os.close(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.dispose(); } catch(Exception e) {}
+            if (workbook != null) try { workbook.close(); } catch(Exception e) {}
+        }
+    }
 
     /** 입력된 iterator 객체를 엑셀로 변환
      * @param os
@@ -148,6 +179,8 @@ public class Excelport {
         List<ExcelField> parsedExcels = null;
         try {
             parsedExcels = AnnotationParser.extractExcelColumns(template.newInstance());
+
+            parsedExcels.stream().forEach(it -> System.out.println(it));
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(e.getMessage());

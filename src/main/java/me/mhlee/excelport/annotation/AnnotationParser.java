@@ -4,6 +4,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,35 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class AnnotationParser {
+
+    /** 객체에 선언된 Excel annotation 정보와 필드명을 order 순서에 맞게 정렬하여 리턴
+     * @param template Excel annotation 정보가 선언된 String array
+     * @return
+     */
+    public static List<ExcelField> extractExcelColumnsFromString(String[] template) {
+        List<ExcelField> result = new ArrayList<>();
+
+        for(String item : template) {
+            ExcelField excelField = new ExcelField();
+            String[] fields = item.split(",");
+
+            for (String field: fields) {
+                excelField.setFieldByStringTemplate(field);
+            }
+
+            if (Objects.isNull(excelField.getFieldName())) {
+                System.out.println("fieldName is null!! ==> " + excelField);
+            }
+
+            System.out.println(excelField);
+
+            result.add(excelField);
+        }
+
+        return result.stream()
+                .sorted()
+                .collect(Collectors.toList());
+    }
 
     /** 객체에 선언된 Excel annotation 정보와 필드명을 order 순서에 맞게 정렬하여 리턴
      * @param obj Excel annotation 이 선언된 object
