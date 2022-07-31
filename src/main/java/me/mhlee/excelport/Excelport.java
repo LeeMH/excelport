@@ -146,13 +146,15 @@ public class Excelport {
         Object firstItem = iterator.next();
         List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumnsFromString(template);
 
-        while(iterator.hasNext()) {
+        boolean writeFirstLine = true;
+        do {
             sheet = workbook.createSheet();
             sheet.trackAllColumnsForAutoSizing();
-            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
-        }
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels, writeFirstLine);
+            writeFirstLine = false;
+        } while(iterator.hasNext());
 
-        try {
+            try {
             workbook.write(os);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -179,20 +181,20 @@ public class Excelport {
         List<ExcelField> parsedExcels = null;
         try {
             parsedExcels = AnnotationParser.extractExcelColumns(template.newInstance());
-
-            parsedExcels.stream().forEach(it -> System.out.println(it));
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(e.getMessage());
         }
 
-        while(iterator.hasNext()) {
+        boolean writeFirstLine = true;
+        do {
             sheet = workbook.createSheet();
             sheet.trackAllColumnsForAutoSizing();
-            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
-        }
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels, writeFirstLine);
+            writeFirstLine = false;
+        } while(iterator.hasNext());
 
-        try {
+            try {
             workbook.write(os);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -218,11 +220,13 @@ public class Excelport {
         Object firstItem = iterator.next();
         List<ExcelField> parsedExcels = AnnotationParser.extractExcelColumns(firstItem);
 
-        while(iterator.hasNext()) {
+        boolean writeFirstLine = true;
+        do {
             sheet = workbook.createSheet();
             sheet.trackAllColumnsForAutoSizing();
-            toExcel(workbook, sheet, iterator, firstItem, parsedExcels);
-        }
+            toExcel(workbook, sheet, iterator, firstItem, parsedExcels, writeFirstLine);
+            writeFirstLine = false;
+        } while(iterator.hasNext());
 
         try {
             workbook.write(os);
@@ -235,7 +239,7 @@ public class Excelport {
         }
     }
 
-    private static void toExcel(Workbook workbook, Sheet sheet, Iterator iterator, Object firstItem, List<ExcelField> parsedExcels) {
+    private static void toExcel(Workbook workbook, Sheet sheet, Iterator iterator, Object firstItem, List<ExcelField> parsedExcels, boolean writeFirstLine) {
         int rowNum = 0;
 
         //write column header
@@ -243,7 +247,9 @@ public class Excelport {
         processHeaderRow(workbook, sheet.createRow(rowNum++), headers);
 
         //write first record
-        processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(firstItem, parsedExcels), parsedExcels);
+        if (writeFirstLine) {
+            processDataRow(workbook, sheet.createRow(rowNum++), AnnotationParser.toRow(firstItem, parsedExcels), parsedExcels);
+        }
 
         while (iterator.hasNext()) {
             Object obj = iterator.next();
